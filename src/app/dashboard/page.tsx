@@ -16,6 +16,7 @@ import {
   Plus,
   Receipt,
 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 function statusBadgeVariant(status?: string) {
   const s = (status ?? '').toLowerCase()
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
   const supabase = await supabaseServer()
   const { data: auth } = await supabase.auth.getUser()
   const user = auth.user!
+  if (!auth.user) redirect('/login')
 
   const { data: balanceRow } = await supabase
     .from('balances')

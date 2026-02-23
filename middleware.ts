@@ -1,64 +1,79 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PROTECTED = ['/dashboard', '/invest', '/withdraw', '/profile', '/admin']
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/invest',
+  '/withdraw',
+  '/profile',
+  '/admin',
+]
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip Next.js internals & public files quickly
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/assets') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.webp')
+  ) {
+    return NextResponse.next()
+  }
+
+  const isProtected = PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  )
+
+  // If not protected, allow
+  if (!isProtected) return NextResponse.next()
+
+  // Create Supabase server client (Edge-safe) using cookies
+  const response = NextResponse.next()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (cookies) => {
-          cookies.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options)
-          })
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data } = await supabase.auth.getUser()
 
-  const pathname = req.nextUrl.pathname
-
-  // If logged in, keep them out of the landing page
-  if (user && pathname === '/') {
-    const url = req.nextUrl.clone()
-    url.pathname = '/dashboard'
+  // Not signed in → go login (and keep "next" return path)
+  if (!data.user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('next', pathname)
     return NextResponse.redirect(url)
   }
 
-  // Protect app routes
-  if (!user && PROTECTED.some((p) => pathname.startsWith(p))) {
-    const url = req.nextUrl.clone()
-    url.pathname = '/auth'
-    return NextResponse.redirect(url)
-  }
-
-  // Admin gate: check via RPC/function is_admin() in SQL
-  if (pathname.startsWith('/admin')) {
-    if (!user) {
-      const url = req.nextUrl.clone()
-      url.pathname = '/auth'
-      return NextResponse.redirect(url)
-    }
-    const { data, error } = await supabase.rpc('is_admin')
-    if (error || !data) {
-      const url = req.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-  }
-
-  return res
+  return response
 }
 
+// Only run middleware on routes we care about (faster)
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/dashboard/:path*',
+    '/invest/:path*',
+    '/withdraw/:path*',
+    '/profile/:path*',
+    '/admin/:path*',
+  ],
 }

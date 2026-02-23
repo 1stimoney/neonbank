@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { redirect } from 'next/navigation'
 
 const FEE_AMOUNT = 750
 const MIN_WITHDRAWAL = 5000
@@ -90,6 +91,7 @@ export default function WithdrawPage() {
         const { data } = await supabase.auth.getUser()
         const user = data.user
         if (!user) return
+        if (!data.user) redirect('/login')
 
         // profile
         const { data: p, error: pErr } = await supabase

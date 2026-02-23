@@ -23,6 +23,7 @@ import {
   Plus,
   ShieldCheck,
 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 type Profile = {
   id: string
@@ -66,6 +67,7 @@ export default function ProfilePage() {
       const user = data.user
       if (!user) return
       setUserId(user.id)
+      if (!data.user) redirect('/login')
 
       const { data: p, error } = await supabase
         .from('profiles')

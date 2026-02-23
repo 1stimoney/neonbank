@@ -15,6 +15,7 @@ import {
   MessageCircle,
   HelpCircle,
 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 /**
  * WhatsApp destination
@@ -75,6 +76,7 @@ export default async function CreateInvestmentPage() {
   const supabase = await supabaseServer()
   const { data: auth } = await supabase.auth.getUser()
   const user = auth.user!
+  if (!auth.user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')

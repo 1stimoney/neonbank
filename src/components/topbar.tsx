@@ -54,7 +54,7 @@ export default async function Topbar() {
             </>
           ) : (
             <Button asChild className='rounded-2xl'>
-              <Link href='/auth'>Sign in</Link>
+              <Link href='/login'>Sign in</Link>
             </Button>
           )}
         </div>

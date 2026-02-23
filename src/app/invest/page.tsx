@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Wallet, Plus, TrendingUp, Clock } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 function statusVariant(status?: string) {
   const s = (status ?? '').toLowerCase()
@@ -18,6 +19,7 @@ export default async function InvestPage() {
   const supabase = await supabaseServer()
   const { data: auth } = await supabase.auth.getUser()
   const user = auth.user!
+  if (!auth.user) redirect('/login')
 
   const { data: investments } = await supabase
     .from('investments')

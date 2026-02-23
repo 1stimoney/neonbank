@@ -19,7 +19,7 @@ export default function Home() {
               <Link href='/auth'>Get started</Link>
             </Button>
             <Button asChild variant='outline' className='rounded-2xl'>
-              <Link href='/auth'>Sign in</Link>
+              <Link href='/login'>Sign in</Link>
             </Button>
           </div>
         </div>
