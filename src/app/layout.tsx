@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { supabaseServer } from '@/lib/supabase/server'
 import AppShell from '@/components/app-shell'
+import { Analytics } from '@vercel/analytics/next'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -40,6 +41,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AppShell showAdmin={showAdmin}>{children}</AppShell>
+        <Analytics />
       </body>
     </html>
   )
