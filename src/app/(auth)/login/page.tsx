@@ -11,6 +11,14 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { toast, Toaster } from 'sonner'
 import { Mail, Lock, KeyRound, ArrowRight, ShieldCheck } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export default function LoginPage() {
   const supabase = useMemo(() => supabaseBrowser(), [])
@@ -25,6 +33,11 @@ export default function LoginPage() {
   const [codeSent, setCodeSent] = useState(false)
 
   const [loading, setLoading] = useState(false)
+
+  // Forgot password modal
+  const [fpOpen, setFpOpen] = useState(false)
+  const [fpEmail, setFpEmail] = useState('')
+  const [fpLoading, setFpLoading] = useState(false)
 
   const canPasswordSignIn = email.trim() && password.trim()
   const canSendCode = email.trim()
@@ -41,17 +54,14 @@ export default function LoginPage() {
       })
 
       if (error) throw error
-      if (!data.session) {
-        // Rare, but handle gracefully
-        toast('Signed in. Completing verification…')
-      }
+      if (!data.session) toast('Signed in. Completing verification…')
 
       toast.success('Welcome back.')
       const params = new URLSearchParams(window.location.search)
       const next = params.get('next') || '/dashboard'
       router.replace(next)
+      router.refresh()
     } catch (e: any) {
-      // Keep it simple and user-friendly
       toast.error(e?.message ?? 'Sign in failed')
     } finally {
       setLoading(false)
@@ -65,13 +75,10 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: {
-          shouldCreateUser: false, // IMPORTANT: returning users only
-        },
+        options: { shouldCreateUser: false },
       })
 
       if (error) throw error
-
       setCodeSent(true)
       toast.success('Verification code sent to your email.')
     } catch (e: any) {
@@ -99,6 +106,7 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search)
       const next = params.get('next') || '/dashboard'
       router.replace(next)
+      router.refresh()
     } catch (e: any) {
       toast.error(e?.message ?? 'Invalid code')
     } finally {
@@ -106,8 +114,28 @@ export default function LoginPage() {
     }
   }
 
+  const sendPasswordReset = async () => {
+    const target = (fpEmail || email).trim()
+    if (!target) return toast.error('Enter your email.')
+
+    setFpLoading(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(target, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw error
+
+      toast.success('Reset link sent. Check your email.')
+      setFpOpen(false)
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not send reset email')
+    } finally {
+      setFpLoading(false)
+    }
+  }
+
   return (
-    <div className='relative min-h-[calc(100vh-0px)] bg-zinc-50'>
+    <div className='relative min-h-screen bg-zinc-50'>
       <Toaster richColors />
 
       {/* Background glow */}
@@ -213,7 +241,8 @@ export default function LoginPage() {
                     </p>
                   </div>
 
-                  <div className='flex gap-2'>
+                  {/* ✅ Mobile-friendly: stack on small screens */}
+                  <div className='flex flex-col gap-2 sm:flex-row'>
                     <Button
                       type='button'
                       variant='outline'
@@ -258,17 +287,22 @@ export default function LoginPage() {
                 </TabsContent>
               </Tabs>
 
-              <div className='flex items-center justify-between text-sm'>
+              {/* Footer links */}
+              <div className='flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between'>
                 <Link
                   href='/auth'
                   className='text-zinc-600 hover:text-zinc-900'
                 >
                   Create account
                 </Link>
+
                 <button
                   type='button'
-                  className='text-zinc-600 hover:text-zinc-900'
-                  onClick={() => toast('Add a reset flow when you’re ready.')}
+                  className='text-left text-zinc-600 hover:text-zinc-900 sm:text-right'
+                  onClick={() => {
+                    setFpEmail(email.trim())
+                    setFpOpen(true)
+                  }}
                 >
                   Forgot password?
                 </button>
@@ -281,6 +315,48 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Forgot password modal */}
+      <Dialog open={fpOpen} onOpenChange={setFpOpen}>
+        <DialogContent className='rounded-3xl'>
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              We’ll send a password reset link to your email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='grid gap-2'>
+            <Label>Email</Label>
+            <Input
+              className='rounded-2xl bg-white'
+              placeholder='you@example.com'
+              value={fpEmail}
+              onChange={(e) => setFpEmail(e.target.value)}
+              inputMode='email'
+              autoComplete='email'
+            />
+          </div>
+
+          <DialogFooter className='mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end'>
+            <Button
+              variant='outline'
+              className='w-full rounded-2xl bg-white sm:w-auto'
+              onClick={() => setFpOpen(false)}
+              disabled={fpLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className='w-full rounded-2xl sm:w-auto'
+              onClick={sendPasswordReset}
+              disabled={fpLoading || !fpEmail.trim()}
+            >
+              {fpLoading ? 'Sending…' : 'Send reset link'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
